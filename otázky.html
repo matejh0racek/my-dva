@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Otázky pro nás dva</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,500&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    --bg: #F3F2EF;
+    --ink: #22201D;
+    --muted: #6B6760;
+    --chip: #E4E2DD;
+    --chip-on: #22201D;
+    --chip-on-ink: #F3F2EF;
+    --c-vzpominky: #4F6F5C;
+    --c-hypoteticke: #3B4785;
+    --c-mydva: #7F3446;
+    --c-hluboke: #2C5A5F;
+    --c-zabavne: #C08E2E;
+    --c-36: #5A3E63;
+    --card-ink: #FAF8F4;
+    --card-ink-dark: #2A2112;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #191917;
+      --ink: #ECEAE5;
+      --muted: #9C988F;
+      --chip: #2B2A27;
+      --chip-on: #ECEAE5;
+      --chip-on-ink: #191917;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #191917; --ink: #ECEAE5; --muted: #9C988F;
+    --chip: #2B2A27; --chip-on: #ECEAE5; --chip-on-ink: #191917;
+  }
+  *, *::before, *::after { box-sizing: inherit; }
+  html { height: 100%; scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    margin: 0; min-height: 100%;
+    background: var(--bg); color: var(--ink);
+    font-family: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: flex; justify-content: center;
+  }
+  main {
+    width: 100%; max-width: 560px;
+    padding: 20px 16px 24px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .filters { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    font: inherit; font-size: 0.85rem;
+    border: 0; border-radius: 999px;
+    padding: 6px 12px; cursor: pointer;
+    background: var(--chip); color: var(--ink);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .chip .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .chip[aria-pressed="true"] { background: var(--chip-on); color: var(--chip-on-ink); }
+  .chip:focus-visible, .card:focus-visible, .btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+  .stage { perspective: 1200px; }
+  .card {
+    position: relative;
+    width: 100%; min-height: 280px;
+    border: 0; border-radius: 22px;
+    padding: 28px 26px 22px;
+    text-align: left; cursor: pointer;
+    display: flex; flex-direction: column; justify-content: space-between;
+    color: var(--card-ink);
+    background: var(--cat, #3B4785);
+    transition: background-color .35s ease;
+  }
+  .card.dark-ink { color: var(--card-ink-dark); }
+  .card.turn { animation: turn .45s cubic-bezier(.3,.7,.3,1); }
+  @keyframes turn {
+    0%   { transform: rotateY(0) translateY(0); }
+    45%  { transform: rotateY(-88deg) translateY(-4px); }
+    55%  { transform: rotateY(88deg) translateY(-4px); }
+    100% { transform: rotateY(0) translateY(0); }
+  }
+  @media (prefers-reduced-motion: reduce) { .card.turn { animation: none; } }
+  .cat { font-size: 0.9rem; opacity: .85; }
+  .q {
+    font-family: "Literata", Georgia, "Times New Roman", serif;
+    font-size: clamp(1.35rem, 4.6vw, 1.75rem);
+    line-height: 1.38; font-weight: 400;
+    margin: 18px 0; text-wrap: pretty;
+  }
+  .hint { font-size: 0.85rem; opacity: .7; }
+
+  .bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .count { color: var(--muted); font-size: 0.9rem; }
+  .actions { display: flex; gap: 8px; }
+  .btn {
+    font: inherit; font-weight: 600; font-size: 0.95rem;
+    border-radius: 12px; padding: 10px 16px; cursor: pointer;
+    border: 1.5px solid var(--ink); background: transparent; color: var(--ink);
+  }
+  .btn.primary { background: var(--ink); color: var(--bg); }
+</style>
+</head>
+<body>
+<main>
+  <div class="filters" id="filters" role="group" aria-label="Témata"></div>
+
+  <div class="stage">
+    <button class="card" id="card" aria-live="polite" aria-label="Další otázka">
+      <span class="cat" id="cat"></span>
+      <p class="q" id="q"></p>
+      <span class="hint" id="hint">Klepni na kartu pro další otázku</span>
+    </button>
+  </div>
+
+  <div class="bar">
+    <span class="count" id="count"></span>
+    <div class="actions">
+      <button class="btn" id="reset">Zamíchat znovu</button>
+      <button class="btn primary" id="next">Další otázka</button>
+    </div>
+  </div>
+</main>
+
+<script>
+const CATS = {
+  vzpominky:  { name: "Vzpomínky",   color: "var(--c-vzpominky)" },
+  mydva:      { name: "My dva",      color: "var(--c-mydva)" },
+  hluboke:    { name: "Do hloubky",  color: "var(--c-hluboke)" },
+  hypoteticke:{ name: "Co kdyby",    color: "var(--c-hypoteticke)" },
+  zabavne:    { name: "Pro zasmání", color: "var(--c-zabavne)", darkInk: true },
+  t36:        { name: "36 otázek",   color: "var(--c-36)" }
+};
+
+const QUESTIONS = [
+  ["vzpominky", "Jaká je tvoje nejstarší vzpomínka, o které si nejsi jistý/á, jestli se opravdu stala?"],
+  ["vzpominky", "Který den z dětství bys chtěl/a zažít znovu, úplně stejně?"],
+  ["vzpominky", "Co tě jako dítě strašně štvalo a dneska už tomu rozumíš?"],
+  ["vzpominky", "Jakou větu ti kdysi někdo řekl a ty si ji pamatuješ doslova dodnes?"],
+  ["vzpominky", "Kdy ses naposledy cítil/a opravdu hrdý/á sám/sama na sebe?"],
+  ["vzpominky", "Kterého učitele nebo učitelku si pamatuješ nejvíc a proč?"],
+  ["vzpominky", "Jaká vůně tě okamžitě vrátí někam do minulosti?"],
+  ["vzpominky", "Za co z dospívání se trochu stydíš, ale vlastně tě to hodně naučilo?"],
+  ["vzpominky", "Jaký byl tvůj nejhorší výlet a co z něj dneska vyprávíš nejradši?"],
+  ["mydva", "Kdy sis poprvé uvědomil/a, že mě máš rád/a?"],
+  ["mydva", "Co na mně bylo jinak, než sis na začátku myslel/a?"],
+  ["mydva", "Jakou drobnost dělám, které si všímáš, ale nikdy jsi ji nekomentoval/a?"],
+  ["mydva", "Který náš společný den bys chtěl/a zažít znovu?"],
+  ["mydva", "V čem se podle tebe navzájem nejvíc ovlivňujeme?"],
+  ["mydva", "Jakou tradici bychom spolu mohli začít?"],
+  ["mydva", "Co bys chtěl/a, abychom spolu zažili během příštího roku?"],
+  ["mydva", "Kdy ses se mnou cítil/a nejvíc v bezpečí?"],
+  ["mydva", "Co by o nás řekl někdo, kdo by nás celý den nenápadně pozoroval?"],
+  ["mydva", "Jak by vypadala naše dokonalá společná neděle, od rána do večera?"],
+  ["mydva", "Co ses ode mě naučil/a, aniž bych ti to vědomě předával/a?"],
+  ["hluboke", "Na čem jsi za poslední pár let úplně změnil/a názor?"],
+  ["hluboke", "Co na tobě lidi často pochopí špatně?"],
+  ["hluboke", "Čeho by ses v životě rád/a přestal/a bát?"],
+  ["hluboke", "Co pro tebe znamená úspěšný život? Znamenalo to totéž před pěti lety?"],
+  ["hluboke", "Jakou vlastnost máš po rodičích a jsi za ni rád/a?"],
+  ["hluboke", "Na co ses jako dítě na dospělosti těšil/a a jak to nakonec dopadlo?"],
+  ["hluboke", "Děláš něco jen proto, že se to „má“?"],
+  ["hluboke", "Kdy tě naposledy překvapilo něco na tobě samotném/samotné?"],
+  ["hluboke", "Jakou radu jsi kdysi dostal/a a ukázalo se, že byla úplně špatně?"],
+  ["hluboke", "Co bys chtěl/a, aby o tobě lidi říkali, když u toho zrovna nebudeš?"],
+  ["hypoteticke", "Kdybys mohl/a rok žít v jakémkoli městě bez starostí o peníze, jak by vypadalo tvoje obyčejné úterý?"],
+  ["hypoteticke", "Kdybys mohl/a jednou za život zastavit čas na hodinu, na co bys ji využil/a?"],
+  ["hypoteticke", "Kdybys musel/a pět let dělat úplně jinou práci, než chceš, co by bylo nejmenší zlo?"],
+  ["hypoteticke", "Kdybychom spolu otevřeli malý podnik, co by to bylo a kdo by měl co na starosti?"],
+  ["hypoteticke", "Kdyby o tobě natočili dokument, jak by se jmenoval?"],
+  ["hypoteticke", "Do které doby v historii by ses na týden podíval/a a co bys tam udělal/a jako první?"],
+  ["hypoteticke", "Kdybys mohl/a jednou mluvit se svým desetiletým já, co bys mu řekl/a a co bys mu zatajil/a?"],
+  ["zabavne", "Jaké jídlo bys hájil/a, i když ho všichni ostatní nesnášejí?"],
+  ["zabavne", "Jaký máš názor, se kterým by většina lidí nesouhlasila?"],
+  ["zabavne", "Kdyby měl tvůj život soundtrack, jaká písnička by hrála právě teď?"],
+  ["zabavne", "Jaké zvíře by mě podle tebe vystihovalo nejlíp a proč?"],
+  ["zabavne", "Jaký nejdivnější sen si pamatuješ?"],
+  ["zabavne", "Jakou nejzbytečnější věc vlastníš a nikdy ji nevyhodíš?"],
+  ["zabavne", "Ve kterém filmu nebo seriálu bys chtěl/a žít jeden den?"],
+  ["zabavne", "Jakou drobnost bys zakázal/a, kdybys byl/a na jeden den prezidentem/prezidentkou?"],
+  ["zabavne", "Které české slovo máš nejradši a které nesnášíš?"],
+  ["zabavne", "Který svůj nákup bys nejradši vrátil/a v čase?"],
+  ["zabavne", "Co je podle tebe nejpřeceňovanější věc na světě?"],
+  ["t36", "Kdyby sis mohl/a vybrat ze všech lidí na světě, s kým bys nejraději šel/šla na večeři?"],
+  ["t36", "Chtěl/a bys být slavný/á? A kvůli čemu?"],
+  ["t36", "Připravuješ si někdy, co řekneš, než někomu zavoláš? Proč?"],
+  ["t36", "Jak by vypadal tvůj „dokonalý“ den?"],
+  ["t36", "Kdy sis naposledy sám/sama pro sebe zpíval/a? A kdy před někým jiným?"],
+  ["t36", "Pokud by ses mohl/a dožít 90 let s tím, že posledních 60 let tvého života by sis mohl/a ponechat buď tělo, nebo mysl třicetiletého člověka, co by sis vybral/a?"],
+  ["t36", "Máš předtuchu toho, jak bude vypadat tvoje smrt?"],
+  ["t36", "Vyjmenuj tři věci, které se ti zdá, že máte s tvým partnerem společné."],
+  ["t36", "Za co ve svém životě jsi nejvíc vděčný/á?"],
+  ["t36", "Kdybys mohl/a změnit cokoliv na způsobu, jakým jsi byl/a vychováván/a, co by to bylo?"],
+  ["t36", "Vyhraď si teď 4 minuty a řekni svému partnerovi svůj životní příběh co nejpodrobněji to půjde."],
+  ["t36", "Kdyby ses zítra mohl/a probudit s jednou libovolnou vlastností nebo dovedností, jaká by to byla?"],
+  ["t36", "Pokud bys měl/a křišťálovou kouli, která ti může říct pravdu o tobě, tvém životě, budoucnosti nebo čemkoliv jiném, co bys chtěl/a vědět?"],
+  ["t36", "Je něco, co už dlouho toužíš udělat? Proč jsi to ještě neudělal/a?"],
+  ["t36", "Co je tvůj největší životní úspěch?"],
+  ["t36", "Čeho si nejvíce vážíš u přátelství?"],
+  ["t36", "Co je tvoje nejcennější vzpomínka?"],
+  ["t36", "Co je tvoje nejhorší vzpomínka?"],
+  ["t36", "Kdybys věděl/a, že za rok náhle zemřeš, změnil/a bys něco na svém životě? Proč?"],
+  ["t36", "Co pro tebe znamená přátelství?"],
+  ["t36", "Jakou roli ve tvém životě hraje láska a náklonnost?"],
+  ["t36", "Nyní řekni svému partnerovi něco, co ti na něm přijde pozitivní, načež on udělá to samé. Prostřídejte se, dokud každý neřekne 5 pozitivních vlastností."],
+  ["t36", "Jak blízké a vřelé jsou vztahy ve tvé rodině? Máš pocit, že jsi měl/a šťastnější dětství než většina ostatních lidí?"],
+  ["t36", "Jaký máš pocit ze vztahu se svou matkou?"],
+  ["t36", "Řekněte 3 pravdivá tvrzení o sobě a svém partnerovi. Například „Jsme oba v této místnosti a cítíme…“"],
+  ["t36", "Dokonči následující větu: „Přál/a bych si mít někoho, s kým bych mohl/a sdílet…“"],
+  ["t36", "Kdyby se z tebe a tvého partnera měli stát blízcí přátelé, co si myslíš, že by bylo důležité, aby o tobě věděl?"],
+  ["t36", "Řekni svému partnerovi, co se ti na něm/ní líbí. Tentokrát buď velmi upřímný/á a řekni věci, které bys možná neřekl/a někomu, koho jsi teprve před chvílí poznal/a."],
+  ["t36", "Sdílej se svým partnerem nějaký trapný moment z tvého života."],
+  ["t36", "Kdy jsi naposledy brečel/a před jiným člověkem? A kdy zcela sám/sama?"],
+  ["t36", "Řekni svému partnerovi, co na něm/ní máš rád/a už teď."],
+  ["t36", "Co je příliš závažné na to, aby se o tom vtipkovalo, pokud něco takového podle tebe vůbec existuje?"],
+  ["t36", "Pokud bys měl/a dnes večer zemřít bez možnosti jakkoliv komunikovat, čeho bys nejvíce litoval/a, že jsi někomu neřekl/a? A proč jsi to ještě neudělal/a?"],
+  ["t36", "Tvůj domov, kde se nachází i veškerý tvůj majetek, začne hořet. Poté, co zachráníš své blízké a domácí mazlíčky, máš čas vrátit se už jen pro jednu jedinou věc. Jaká by to byla? A proč?"],
+  ["t36", "Ze všech členů tvojí rodiny, čí smrt by tě nejvíce zasáhla? Proč?"],
+  ["t36", "Sdílej nějaký svůj osobní problém a požádej partnera o radu, jak by ho řešil/a on/ona. Zároveň ho/ji požádej, aby reflektoval/a, jaké podle něj/ní máš z tohoto problému pocity."],
+  ["t36", "Bonus: Beze slova se dívejte jeden druhému do očí po dobu čtyř minut."]
+];
+
+const KEY = "otazky-state-v2";
+let state = { active: Object.keys(CATS), deck: [], current: null };
+
+function load() {
+  try {
+    const s = JSON.parse(localStorage.getItem(KEY));
+    if (s && Array.isArray(s.active) && Array.isArray(s.deck)) state = s;
+  } catch (e) {}
+}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+function pool() {
+  return QUESTIONS.map((q, i) => i).filter(i => state.active.includes(QUESTIONS[i][0]));
+}
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+function rebuildDeck() {
+  state.deck = shuffle(pool().filter(i => i !== state.current));
+}
+
+const $ = id => document.getElementById(id);
+
+function render(animate) {
+  const card = $("card");
+  const apply = () => {
+    if (state.current == null) {
+      card.style.setProperty("--cat", "var(--ink)");
+      card.classList.remove("dark-ink");
+      card.style.color = "var(--bg)";
+      $("cat").textContent = "";
+      $("q").textContent = "Vyber aspoň jedno téma.";
+      return;
+    }
+    card.style.color = "";
+    const [c, text] = QUESTIONS[state.current];
+    card.style.setProperty("--cat", CATS[c].color);
+    card.classList.toggle("dark-ink", !!CATS[c].darkInk);
+    $("cat").textContent = CATS[c].name;
+    $("q").textContent = text;
+  };
+  if (animate && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    card.classList.remove("turn"); void card.offsetWidth; card.classList.add("turn");
+    setTimeout(apply, 200);
+  } else apply();
+
+  const total = pool().length;
+  const left = state.deck.length;
+  $("count").textContent = total ? `Zbývá ${left} z ${total}` : "";
+  $("hint").textContent = left === 0 && total
+    ? "Prošli jste všechny. Další klepnutí balíček zamíchá."
+    : "Klepni na kartu pro další otázku";
+}
+
+function next() {
+  if (!pool().length) { state.current = null; render(false); return; }
+  if (!state.deck.length) rebuildDeck();
+  if (!state.deck.length) { render(true); return; }
+  state.current = state.deck.pop();
+  save(); render(true);
+}
+
+function renderFilters() {
+  const wrap = $("filters"); wrap.innerHTML = "";
+  for (const [key, c] of Object.entries(CATS)) {
+    const b = document.createElement("button");
+    b.className = "chip";
+    b.setAttribute("aria-pressed", state.active.includes(key));
+    b.innerHTML = `<span class="dot" style="background:${c.color}"></span>${c.name}`;
+    b.onclick = () => {
+      state.active = state.active.includes(key) ? state.active.filter(k => k !== key) : [...state.active, key];
+      rebuildDeck();
+      if (state.current != null && !state.active.includes(QUESTIONS[state.current][0])) state.current = null;
+      save(); renderFilters();
+      if (state.current == null) next(); else render(false);
+    };
+    wrap.appendChild(b);
+  }
+}
+
+$("card").onclick = next;
+$("next").onclick = next;
+$("reset").onclick = () => { state.current = null; rebuildDeck(); next(); };
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowRight" && e.target === document.body) next();
+});
+
+load();
+state.deck = state.deck.filter(i => i < QUESTIONS.length && state.active.includes(QUESTIONS[i][0]));
+if (state.current != null && state.current >= QUESTIONS.length) state.current = null;
+renderFilters();
+if (state.current == null) next(); else render(false);
+</script>
+</body>
+</html>
